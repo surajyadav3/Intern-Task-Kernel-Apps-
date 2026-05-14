@@ -18,7 +18,7 @@ const Home = () => {
 
     setLoading(true);
     try {
-      const res = await axios.post('http://localhost:5000/api/upload', formData, {
+      const res = await axios.post(`${process.env.REACT_APP_API_URL}/api/upload`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       toast.success('File analyzed successfully!');

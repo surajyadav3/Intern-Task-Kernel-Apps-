@@ -13,7 +13,7 @@ const Report = () => {
   useEffect(() => {
     const fetchReport = async () => {
       try {
-        const res = await axios.get(`http://localhost:5000/api/report/${id}`);
+        const res = await axios.get(`${process.env.REACT_APP_API_URL}/api/report/${id}`);
         setReport(res.data);
       } catch (error) {
         toast.error('Failed to load report');
@@ -25,11 +25,11 @@ const Report = () => {
   }, [id]);
 
   const handleDownloadPDF = () => {
-    window.open(`http://localhost:5000/api/report/${id}/download`, '_blank');
+    window.open(`${process.env.REACT_APP_API_URL}/api/report/${id}/download`, '_blank');
   };
 
   const handleDownloadOriginal = () => {
-    window.open(`http://localhost:5000/api/report/${id}/download-original`, '_blank');
+    window.open(`${process.env.REACT_APP_API_URL}/api/report/${id}/download-original`, '_blank');
   };
 
   if (loading) return <div className="container"><h2>Loading report...</h2></div>;
