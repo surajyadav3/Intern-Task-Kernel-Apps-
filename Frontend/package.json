@@ -1,0 +1,12 @@
+{
+  "name": "frontend-root",
+  "version": "1.0.0",
+  "description": "Proxy for nested frontend",
+  "scripts": {
+    "start": "npm start --prefix frontend",
+    "dev": "npm start --prefix frontend",
+    "install": "npm install --prefix frontend",
+    "test": "npm test --prefix frontend",
+    "build": "npm build --prefix frontend"
+  }
+}
