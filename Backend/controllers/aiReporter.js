@@ -64,7 +64,7 @@ const fallbackReport = (stats, filename) => ({
     summary: `The "${filename}" dataset contains ${stats.totalRows} rows and ${stats.totalColumns} columns. ` +
         `${stats.duplicates > 0 ? `${stats.duplicates} duplicate record(s) were identified and should be removed before analysis. ` : ''}` +
         `${stats.missingByColumn.length > 0 ? `Missing data was detected in: ${stats.missingByColumn.map(m => `${m.column} (${m.missing})`).join(', ')}. ` : ''}` +
-        `AI-powered analysis unavailable — Ollama service is not responding.`,
+        `AI-powered analysis unavailable — AI service could not be reached.`,
     anomalies: [
         stats.duplicates > 0 ? `${stats.duplicates} duplicate row(s) detected — exact duplicates inflate record counts` : 'No duplicate rows detected',
         ...stats.missingByColumn.map(m => `Column "${m.column}" has ${m.missing} missing value(s) (${((m.missing / stats.totalRows) * 100).toFixed(1)}% of rows)`),
@@ -79,20 +79,45 @@ const fallbackReport = (stats, filename) => ({
     ].filter(Boolean)
 });
 
-const generateAIReport = async (stats, filename) => {
+const generateWithGroq = async (stats, filename) => {
+    const response = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
+        model: process.env.GROQ_MODEL || 'llama3-70b-8192',
+        messages: [{ role: 'user', content: buildPrompt(stats, filename) }],
+        temperature: 0.2,
+        max_tokens: 1024
+    }, {
+        headers: {
+            'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+            'Content-Type': 'application/json'
+        },
+        timeout: 60000
+    });
+
+    return extractJSON(response.data.choices[0].message.content);
+};
+
+const generateWithOllama = async (stats, filename) => {
     const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
-    const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llama3';
+    const response = await axios.post(`${OLLAMA_URL}/api/generate`, {
+        model: process.env.OLLAMA_MODEL || 'llama3',
+        prompt: buildPrompt(stats, filename),
+        stream: false,
+        format: 'json',
+        options: { temperature: 0.2, num_predict: 1024 }
+    }, { timeout: 120000 });
 
+    return extractJSON(response.data.response);
+};
+
+const generateAIReport = async (stats, filename) => {
     try {
-        const response = await axios.post(`${OLLAMA_URL}/api/generate`, {
-            model: OLLAMA_MODEL,
-            prompt: buildPrompt(stats, filename),
-            stream: false,
-            format: 'json',
-            options: { temperature: 0.2, num_predict: 1024 }
-        }, { timeout: 120000 });
+        let parsed;
 
-        const parsed = extractJSON(response.data.response);
+        if (process.env.GROQ_API_KEY) {
+            parsed = await generateWithGroq(stats, filename);
+        } else {
+            parsed = await generateWithOllama(stats, filename);
+        }
 
         if (!parsed.summary || !Array.isArray(parsed.anomalies) || !Array.isArray(parsed.recommendations)) {
             throw new Error('AI response missing required fields');
